@@ -1,66 +1,48 @@
-// Cosas de la API
+import {
+  useMyError,
+  useMyLoading,
+  useMyCity,
+  useMyWeather,
+} from "../hooks/myHoks";
 
-import { useMyError } from "../hooks/myHoks";
-import { useMyLoading } from "../hooks/myHoks";
-import { useMyCity } from "../hooks/myHoks";
-import { useMyWeather } from "../hooks/myHoks";
+const api_key = import.meta.env.VITE_API_KEY;
+const API_WEATHER = `http://api.weatherapi.com/v1/current.json?key=${api_key}&lang=es&q=`;
 
-const API_WEATHER = `http://api.weatherapi.com/v1/current.json?key=${
-  import.meta.env.VITE_API_KEY
-}&lang=es&q=`;
+export function useOnSubmit() {
+  const { setError } = useMyError();
+  const { setLoading } = useMyLoading();
+  const { city } = useMyCity();
+  const { setWeather } = useMyWeather();
 
-function useMyStates() {
-  const { error, setError } = useMyError();
-  const { loading, setLoading } = useMyLoading();
-  const { city, setCity } = useMyCity();
-  const { weather, setWeather } = useMyWeather();
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setError({ error: false, message: "" });
+    setLoading(true);
 
-  return {
-    error,
-    setError,
-    loading,
-    setLoading,
-    city,
-    setCity,
-    weather,
-    setWeather,
-  };
-}
+    try {
+      if (!city.trim()) throw { message: "El campo ciudad es obligatorio" };
 
-const onSubmit = async (e) => {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { setError, setLoading, city, setWeather } = useMyStates();
+      const res = await fetch(API_WEATHER + city);
+      const data = await res.json();
 
-  e.preventDefault();
-  setError({ error: false, message: "" });
-  setLoading(true);
+      if (data.error) {
+        throw { message: data.error.message };
+      }
 
-  try {
-    if (!city.trim()) throw { message: "El campo ciudad es obligatorio" };
-
-    const res = await fetch(API_WEATHER + city);
-    const data = await res.json();
-
-    if (data.error) {
-      throw { message: data.error.message };
+      setWeather({
+        city: data.location.name,
+        country: data.location.country,
+        temperature: data.current.temp_c,
+        condition: data.current.condition.code,
+        conditionText: data.current.condition.text,
+        icon: data.current.condition.icon,
+      });
+    } catch (error) {
+      setError({ error: true, message: error.message });
+    } finally {
+      setLoading(false);
     }
+  };
 
-    console.log(data);
-
-    setWeather({
-      city: data.location.name,
-      country: data.location.country,
-      temperature: data.current.temp_c,
-      condition: data.current.condition.code,
-      conditionText: data.current.condition.text,
-      icon: data.current.condition.icon,
-    });
-  } catch (error) {
-    console.log(error);
-    setError({ error: true, message: error.message });
-  } finally {
-    setLoading(false);
-  }
-};
-
-export { onSubmit };
+  return { onSubmit };
+}
